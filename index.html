@@ -988,7 +988,12 @@ function flash(msg){
 renderHeader();
 renderToday();
 setInterval(renderHeader, 60000);
-if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  // When a new version takes over, reload once so the update shows immediately.
+  let __reloading=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(__reloading)return; __reloading=true; location.reload(); });
+}
 </script>
 </body>
 </html>

@@ -89,6 +89,11 @@
   .stat-label{font-size:15px;font-weight:700;margin-bottom:3px;}
   .stat-sub{font-size:13px;color:var(--muted);}
 
+  .creatine-card{display:flex;align-items:center;gap:15px;cursor:pointer;transition:transform .1s;}
+  .creatine-card:active{transform:scale(.99);}
+  .creatine-card .check{width:32px;height:32px;border-radius:11px;}
+  .creatine-card .check.on::after{font-size:18px;}
+
   /* Water */
   .water-grid{display:flex;flex-wrap:wrap;gap:16px;margin-top:20px;justify-content:center;}
   .bottle{
@@ -355,6 +360,15 @@
     </div>
   </div>
 
+  <div class="card creatine-card" onclick="toggleCreatine()">
+    <div class="check" id="creatine-check"></div>
+    <div style="flex:1">
+      <div class="stat-label">💊 Creatine</div>
+      <div class="stat-sub" id="creatine-sub">Tap when you've taken your daily 5g</div>
+    </div>
+    <div class="pill" id="creatine-streak" style="display:none;"></div>
+  </div>
+
   <div class="section-title">Up Next</div>
   <div class="card" id="today-todos"></div>
 
@@ -544,7 +558,7 @@ if(!data.bottleMigrated){ data.goals.water = 6; data.bottleMigrated = true; save
 if(!data.calMigrated){ data.goals.food = 3000; data.calMigrated = true; save(); }
 function day(k){
   k = k || todayKey();
-  if(!data.days[k]) data.days[k] = {water:0, meals:[], workouts:[]};
+  if(!data.days[k]) data.days[k] = {water:0, meals:[], workouts:[], creatine:false};
   return data.days[k];
 }
 function uid(){ return Math.random().toString(36).slice(2,9); }
@@ -604,6 +618,8 @@ function renderToday(){
   setRing('ring-wk', wk>0?1:0);
   document.getElementById('ring-wk-t').textContent = wk;
   document.getElementById('wk-sub').textContent = wk>0 ? wk+' workout'+(wk===1?'':'s')+' crushed 💥' : 'No workouts yet today';
+  // creatine
+  renderCreatine();
   // todos preview
   const open = data.todos.filter(t=>!t.done).slice(0,4);
   const box = document.getElementById('today-todos');
@@ -614,6 +630,35 @@ function renderToday(){
   } else {
     box.innerHTML = open.map(t=>todoItemHTML(t)).join('');
   }
+}
+
+/* ---------------- Creatine ---------------- */
+function toggleCreatine(){
+  const d = day();
+  d.creatine = !d.creatine;
+  save(); renderCreatine();
+}
+function creatineStreak(){
+  let s = 0; const dt = new Date();
+  for(let i=0;i<400;i++){
+    const k = keyOf(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    const dd = data.days[k];
+    if(dd && dd.creatine) s++;
+    else if(i===0){ /* today not done yet, keep looking back */ }
+    else break;
+    dt.setDate(dt.getDate()-1);
+  }
+  return s;
+}
+function renderCreatine(){
+  const d = day();
+  document.getElementById('creatine-check').classList.toggle('on', !!d.creatine);
+  document.getElementById('creatine-sub').textContent =
+    d.creatine ? 'Done for today — nice. 💪' : "Tap when you've taken your daily 5g";
+  const s = creatineStreak();
+  const pill = document.getElementById('creatine-streak');
+  pill.textContent = s>0 ? '🔥 '+s+'d' : '';
+  pill.style.display = s>0 ? 'inline-block' : 'none';
 }
 
 /* ---------------- Water view ---------------- */
@@ -889,7 +934,8 @@ function calSelect(k){
     `<div class="stat-label" style="margin-bottom:12px;">${label} · ${sc.n}/3 done</div>
      <div class="cal-row ${sc.water?'ok':''}"><span>${sc.water?'✅':'⬜'} 💧 Hydration</span><b>${d?d.water:0} / ${data.goals.water} bottles</b></div>
      <div class="cal-row ${sc.food?'ok':''}"><span>${sc.food?'✅':'⬜'} 🍽️ Food</span><b>${sc.cals} / ${data.goals.food} cal</b></div>
-     <div class="cal-row ${sc.wk?'ok':''}"><span>${sc.wk?'✅':'⬜'} 💪 Workouts</span><b>${wkCount} logged</b></div>`;
+     <div class="cal-row ${sc.wk?'ok':''}"><span>${sc.wk?'✅':'⬜'} 💪 Workouts</span><b>${wkCount} logged</b></div>
+     <div class="cal-row ${d&&d.creatine?'ok':''}"><span>${d&&d.creatine?'✅':'⬜'} 💊 Creatine</span><b>${d&&d.creatine?'taken':'—'}</b></div>`;
 }
 
 /* ---------------- Goal modal ---------------- */

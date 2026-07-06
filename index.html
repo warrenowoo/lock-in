@@ -277,9 +277,9 @@
   .cal-title{font-size:17px;font-weight:700;}
   .cal-nav{width:38px;height:38px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line);font-size:22px;color:var(--text);display:flex;align-items:center;justify-content:center;}
   .cal-nav:active{transform:scale(.92);}
-  .cal-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px;}
+  .cal-dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-bottom:6px;}
   .cal-dow span{text-align:center;font-size:11px;color:var(--muted);font-weight:700;}
-  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;}
   .cal-cell{aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;background:var(--surface-2);color:var(--muted);cursor:pointer;transition:transform .1s;}
   .cal-cell.empty{background:none;cursor:default;}
   .cal-cell.filled{font-weight:800;}

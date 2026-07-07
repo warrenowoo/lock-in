@@ -443,6 +443,19 @@
   .fr-btn.accept,.fr-btn.add{background:var(--accent);color:#0d0f0e;}
   .fr-btn.decline,.fr-btn.pending{background:var(--surface-2);border:1px solid var(--line);color:var(--muted);}
   .fr-empty{font-size:13px;color:var(--muted);padding:10px 2px;}
+
+  /* Profile / Account */
+  .profile-head{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+  .profile-head .avatar{width:58px;height:58px;font-size:25px;}
+  .profile-head .pi{min-width:0;flex:1;}
+  .profile-head .pi .dn{font-size:19px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .profile-head .pi .em{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .pf-stats{display:flex;gap:10px;margin-bottom:18px;}
+  .pf-stats .s{flex:1;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;}
+  .pf-stats .s b{font-size:22px;display:block;line-height:1;}
+  .pf-stats .s span{font-size:11px;color:var(--muted);}
+  .danger-zone{border-top:1px solid var(--line);margin-top:18px;padding-top:16px;}
+  .btn.outline-danger{background:transparent;border:1px solid var(--red);color:var(--red);}
 </style>
 </head>
 <body>
@@ -712,6 +725,41 @@
     <div class="section-title">Your friends</div>
     <div id="friend-list"></div>
     <button class="btn" style="width:100%;margin-top:18px;" onclick="closeFriendsModal()">Done</button>
+  </div>
+</div>
+
+<!-- ============ PROFILE MODAL ============ -->
+<div class="modal-bg" id="profileModal">
+  <div class="modal">
+    <h2>Account</h2>
+    <div class="profile-head">
+      <div class="avatar" id="pf-avatar">?</div>
+      <div class="pi"><div class="dn" id="pf-dn">—</div><div class="em" id="pf-email">—</div></div>
+    </div>
+    <div class="pf-stats">
+      <div class="s"><b id="pf-streak">0</b><span>day streak</span></div>
+      <div class="s"><b id="pf-perfect">0</b><span>perfect days</span></div>
+    </div>
+    <div class="field">
+      <label>Username</label>
+      <div class="add-row">
+        <input id="pf-username" autocapitalize="none" autocomplete="off" placeholder="username">
+        <button class="btn sm primary" onclick="saveUsername()">Save</button>
+      </div>
+      <div class="auth-err" id="pf-uerr"></div>
+    </div>
+    <div class="field">
+      <label>Display name</label>
+      <div class="add-row">
+        <input id="pf-display" placeholder="Your name (optional)">
+        <button class="btn sm primary" onclick="saveDisplayName()">Save</button>
+      </div>
+    </div>
+    <button class="btn" style="width:100%;margin-top:6px;" onclick="closeProfile()">Done</button>
+    <div class="danger-zone">
+      <button class="btn" style="width:100%;" onclick="signOut()">Sign out</button>
+      <button class="btn outline-danger" style="width:100%;margin-top:10px;" onclick="deleteAccount()">Delete account</button>
+    </div>
   </div>
 </div>
 
@@ -1596,8 +1644,8 @@ function updateAccountUI(){
   const banner = document.getElementById('soc-banner');
   if(banner){
     if(sbUser){
-      banner.textContent = '✅ Signed in as @'+(sbProfile ? sbProfile.username : '…')+' — tap to sign out';
-      banner.onclick = ()=>{ if(confirm('Sign out of Lock-In?')) signOut(); };
+      banner.textContent = '👤 @'+(sbProfile ? sbProfile.username : 'you')+' — tap to manage account';
+      banner.onclick = openProfile;
     } else {
       banner.textContent = '👀 Preview with sample friends — tap to sign in & go live.';
       banner.onclick = showLogin;
@@ -1605,6 +1653,54 @@ function updateAccountUI(){
   }
   const h = document.getElementById('my-handle');
   if(h && sbProfile) h.textContent = '@'+sbProfile.username;
+}
+
+/* ---------------- Profile / Account ---------------- */
+function openProfile(){
+  if(!sbUser){ showLogin(); return; }
+  const dn = sbProfile ? nameOf(sbProfile) : '@you';
+  const av = document.getElementById('pf-avatar');
+  av.textContent = (dn.replace('@','')[0]||'?').toUpperCase();
+  av.style.background = colorFor(sbProfile ? sbProfile.username : 'x');
+  document.getElementById('pf-dn').textContent = dn;
+  document.getElementById('pf-email').textContent = sbUser.email || '';
+  document.getElementById('pf-streak').textContent = sbProfile ? (sbProfile.current_streak||0) : 0;
+  document.getElementById('pf-perfect').textContent = sbProfile ? (sbProfile.perfect_days||0) : 0;
+  document.getElementById('pf-username').value = sbProfile ? sbProfile.username : '';
+  document.getElementById('pf-display').value = (sbProfile && sbProfile.display_name) ? sbProfile.display_name : '';
+  document.getElementById('pf-uerr').textContent = '';
+  document.getElementById('profileModal').classList.add('show');
+}
+function closeProfile(){ document.getElementById('profileModal').classList.remove('show'); }
+async function saveUsername(){
+  const u = document.getElementById('pf-username').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
+  const err = document.getElementById('pf-uerr'); err.style.color='';
+  if(u.length < 3){ err.textContent = 'At least 3 letters, numbers, or _'; return; }
+  const { error } = await sb.from('profiles').update({ username: u }).eq('id', sbUser.id);
+  if(error){ err.textContent = /duplicate|unique/i.test(error.message) ? 'That username is taken.' : error.message; return; }
+  await loadProfile(); updateAccountUI();
+  document.getElementById('pf-dn').textContent = nameOf(sbProfile);
+  err.style.color = 'var(--accent)'; err.textContent = 'Saved ✓';
+  setTimeout(()=>{ err.textContent=''; err.style.color=''; }, 1500);
+}
+async function saveDisplayName(){
+  const dn = document.getElementById('pf-display').value.trim();
+  const { error } = await sb.from('profiles').update({ display_name: dn || null }).eq('id', sbUser.id);
+  if(error){ flash('Error: '+error.message); return; }
+  await loadProfile(); updateAccountUI();
+  document.getElementById('pf-dn').textContent = nameOf(sbProfile);
+  flash('Saved ✓');
+}
+async function deleteAccount(){
+  if(!confirm('Delete your account? This permanently erases your data, streaks, friends, and posts. It cannot be undone.')) return;
+  if(!confirm('Are you absolutely sure? There is no way to recover it.')) return;
+  const { error } = await sb.rpc('delete_own_account');
+  if(error){ flash('Delete failed: '+error.message); return; }
+  try{ await sb.auth.signOut(); }catch(e){}
+  sbUser = null; sbProfile = null;
+  closeProfile(); updateAccountUI();
+  showLogin();
+  flash('Account deleted');
 }
 
 /* ---------------- Quick-add FAB ---------------- */
@@ -1643,6 +1739,7 @@ function saveGoal(){
 function closeModal(){ document.getElementById('goalModal').classList.remove('show'); }
 document.getElementById('goalModal').addEventListener('click',e=>{if(e.target.id==='goalModal')closeModal();});
 document.getElementById('friendsModal').addEventListener('click',e=>{if(e.target.id==='friendsModal')closeFriendsModal();});
+document.getElementById('profileModal').addEventListener('click',e=>{if(e.target.id==='profileModal')closeProfile();});
 
 /* ---------------- Nav ---------------- */
 function switchView(v){

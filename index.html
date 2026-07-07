@@ -748,48 +748,30 @@
     <h2>Settings</h2>
 
     <div id="set-signedout" style="display:none;">
-      <div class="stat-sub" style="margin:2px 2px 14px;line-height:1.5;">You're not signed in. Sign in to sync your data across devices and connect with friends.</div>
+      <div class="stat-sub" style="margin:2px 2px 16px;line-height:1.5;">Sign in to sync your progress and connect with friends.</div>
       <button class="btn primary" style="width:100%;" onclick="closeSettings();showLogin();">Sign in / Create account</button>
     </div>
 
     <div id="set-signedin" style="display:none;">
-      <div class="set-label">Account</div>
       <div class="profile-head">
         <div class="avatar" id="pf-avatar">?</div>
         <div class="pi"><div class="dn" id="pf-dn">—</div><div class="em" id="pf-email">—</div></div>
       </div>
-      <div class="pf-stats">
-        <div class="s"><b id="pf-streak">0</b><span>day streak</span></div>
-        <div class="s"><b id="pf-perfect">0</b><span>perfect days</span></div>
-      </div>
       <div class="field">
-        <label>Username</label>
+        <label>Username (how friends find you)</label>
         <div class="add-row">
           <input id="pf-username" autocapitalize="none" autocomplete="off" placeholder="username">
           <button class="btn sm primary" onclick="saveUsername()">Save</button>
         </div>
         <div class="auth-err" id="pf-uerr"></div>
       </div>
-      <div class="field">
-        <label>Display name</label>
-        <div class="add-row">
-          <input id="pf-display" placeholder="Your name (optional)">
-          <button class="btn sm primary" onclick="saveDisplayName()">Save</button>
-        </div>
+      <button class="btn primary" style="width:100%;margin-top:6px;" onclick="signOut()">Log out</button>
+      <div class="danger-zone">
+        <button class="btn outline-danger" style="width:100%;" onclick="deleteAccount()">Delete account</button>
       </div>
-      <button class="btn primary" style="width:100%;margin-top:4px;" onclick="signOut()">Log out</button>
     </div>
-
-    <div class="set-label">Daily goals</div>
-    <button class="set-row" onclick="closeSettings();openGoal('water')"><span>💧 Water goal</span><b id="set-water-goal">6</b></button>
-    <button class="set-row" onclick="closeSettings();openGoal('food')"><span>🍽️ Calorie goal</span><b id="set-food-goal">3000</b></button>
 
     <button class="btn" style="width:100%;margin-top:14px;" onclick="closeSettings()">Done</button>
-
-    <div id="set-danger" class="danger-zone" style="display:none;">
-      <button class="btn outline-danger" style="width:100%;" onclick="deleteAccount()">Delete account</button>
-    </div>
-
     <div class="set-version">Lock-In · v1.0</div>
   </div>
 </div>
@@ -1706,25 +1688,19 @@ function updateAccountUI(){
 function openSettings(){
   const inEl = document.getElementById('set-signedin');
   const outEl = document.getElementById('set-signedout');
-  const danger = document.getElementById('set-danger');
   if(sbUser){
-    inEl.style.display = 'block'; outEl.style.display = 'none'; danger.style.display = 'block';
+    inEl.style.display = 'block'; outEl.style.display = 'none';
     const dn = sbProfile ? nameOf(sbProfile) : '@you';
     const av = document.getElementById('pf-avatar');
     av.textContent = (dn.replace('@','')[0]||'?').toUpperCase();
     av.style.background = colorFor(sbProfile ? sbProfile.username : 'x');
     document.getElementById('pf-dn').textContent = dn;
     document.getElementById('pf-email').textContent = sbUser.email || '';
-    document.getElementById('pf-streak').textContent = sbProfile ? (sbProfile.current_streak||0) : 0;
-    document.getElementById('pf-perfect').textContent = sbProfile ? (sbProfile.perfect_days||0) : 0;
     document.getElementById('pf-username').value = sbProfile ? sbProfile.username : '';
-    document.getElementById('pf-display').value = (sbProfile && sbProfile.display_name) ? sbProfile.display_name : '';
     document.getElementById('pf-uerr').textContent = '';
   } else {
-    inEl.style.display = 'none'; outEl.style.display = 'block'; danger.style.display = 'none';
+    inEl.style.display = 'none'; outEl.style.display = 'block';
   }
-  document.getElementById('set-water-goal').textContent = data.goals.water + ' bottles';
-  document.getElementById('set-food-goal').textContent = data.goals.food + ' cal';
   document.getElementById('settingsModal').classList.add('show');
 }
 function closeSettings(){ document.getElementById('settingsModal').classList.remove('show'); }

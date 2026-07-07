@@ -1492,7 +1492,41 @@ function closeLogin(){
   localStorage.setItem('lockin_seen_login','1');
 }
 let authMode = 'signin';
-function signInApple(){ flash('🍎 Apple Sign-In activates once your Apple Developer account is connected'); }
+function randNonce(len){
+  const chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const arr=new Uint8Array(len||32); crypto.getRandomValues(arr);
+  let s=''; arr.forEach(v=>{ s+=chars[v%chars.length]; }); return s;
+}
+async function sha256hex(str){
+  const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function signInApple(){
+  const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const plugin = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SignInWithApple;
+  if(!isNative || !plugin){
+    flash('🍎 Sign in with Apple works in the iPhone app. On the web, use email.');
+    return;
+  }
+  if(!sb){ flash('Backend not connected.'); return; }
+  try{
+    const rawNonce = randNonce(32);
+    const hashed = await sha256hex(rawNonce);
+    const res = await plugin.authorize({ scopes: 'email name', nonce: hashed });
+    const idToken = res && res.response && res.response.identityToken;
+    if(!idToken) return; // cancelled / no token
+    const { error } = await sb.auth.signInWithIdToken({ provider:'apple', token: idToken, nonce: rawNonce });
+    if(error){ flash('Apple sign-in error: '+error.message); return; }
+    // Apple only returns the name on the very first sign-in — capture it as display name.
+    const dn = [res.response.givenName, res.response.familyName].filter(Boolean).join(' ').trim();
+    if(dn){ const u=(await sb.auth.getUser()).data.user; if(u) await sb.from('profiles').update({ display_name: dn }).eq('id', u.id); }
+    await loadProfile(); updateAccountUI();
+  } catch(e){
+    const msg = String(e && (e.message || e));
+    if(/cancel|1001/i.test(msg)) return; // user tapped cancel
+    flash('Apple sign-in failed: '+msg);
+  }
+}
 function revealEmail(){
   document.getElementById('loginEmail').classList.add('show');
   const b = document.getElementById('email-toggle-btn'); if(b) b.style.display='none';

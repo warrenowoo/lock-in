@@ -293,6 +293,63 @@
   .cal-row:last-child{border-bottom:none;}
   .cal-row.ok{color:var(--text);}
   .cal-row b{font-weight:600;font-size:13.5px;}
+
+  /* Social / Friends */
+  .soc-banner{
+    background:rgba(163,255,18,.09);border:1px solid var(--accent-dim);
+    color:var(--accent);font-size:12.5px;font-weight:600;
+    padding:10px 14px;border-radius:12px;margin:2px 2px 14px;text-align:center;
+  }
+  .seg{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:14px;}
+  .seg button{flex:1;padding:11px;border-radius:10px;font-size:14px;font-weight:700;color:var(--muted);transition:.15s;}
+  .seg button.on{background:var(--surface-2);color:var(--text);box-shadow:0 1px 0 rgba(0,0,0,.3);}
+  .avatar{
+    width:42px;height:42px;border-radius:50%;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:17px;color:#0d0f0e;
+  }
+  .lb-row{display:flex;align-items:center;gap:13px;padding:12px 4px;border-bottom:1px solid var(--line);}
+  .lb-row:last-child{border-bottom:none;}
+  .lb-rank{width:26px;text-align:center;font-weight:800;font-size:15px;color:var(--muted);flex-shrink:0;}
+  .lb-rank.medal{font-size:20px;}
+  .lb-body{flex:1;min-width:0;}
+  .lb-name{font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lb-name .me-tag{font-size:10px;background:var(--accent);color:#0d0f0e;border-radius:6px;padding:1px 6px;margin-left:6px;font-weight:800;vertical-align:middle;}
+  .lb-sub{font-size:12px;color:var(--muted);margin-top:1px;}
+  .lb-dots{display:flex;gap:4px;margin-top:5px;}
+  .lb-dots i{width:8px;height:8px;border-radius:50%;background:var(--line);display:inline-block;}
+  .lb-dots i.on{background:var(--accent);}
+  .lb-streak{text-align:right;flex-shrink:0;}
+  .lb-streak b{font-size:19px;font-weight:800;display:block;line-height:1;}
+  .lb-streak span{font-size:10px;color:var(--muted);}
+  .row-me{background:rgba(163,255,18,.06);border-radius:12px;}
+
+  .feed-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:15px;margin-bottom:12px;}
+  .feed-top{display:flex;align-items:center;gap:11px;}
+  .feed-top .avatar{width:38px;height:38px;font-size:15px;}
+  .feed-who{flex:1;min-width:0;}
+  .feed-who .n{font-size:14.5px;font-weight:700;}
+  .feed-who .t{font-size:11.5px;color:var(--muted);}
+  .feed-kind{font-size:20px;}
+  .feed-body{margin:11px 0 4px;padding-left:2px;}
+  .feed-body .ft{font-size:15px;font-weight:700;}
+  .feed-body .fd{font-size:13px;color:var(--muted);margin-top:2px;}
+  .react-bar{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;}
+  .react-chip{
+    display:flex;align-items:center;gap:5px;padding:7px 11px;border-radius:20px;
+    background:var(--surface-2);border:1px solid var(--line);font-size:13px;font-weight:700;
+    color:var(--muted);transition:transform .1s;
+  }
+  .react-chip:active{transform:scale(.9);}
+  .react-chip.on{background:rgba(163,255,18,.14);border-color:var(--accent-dim);color:var(--text);}
+  .react-chip .em{font-size:15px;}
+  .react-chip .ct{font-variant-numeric:tabular-nums;}
+  .add-friend-btn{
+    display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    padding:15px;border-radius:14px;background:var(--surface-2);border:1px dashed var(--line);
+    color:var(--text);font-weight:700;font-size:15px;margin-top:6px;
+  }
+  .add-friend-btn:active{transform:scale(.98);}
 </style>
 </head>
 <body>
@@ -478,6 +535,20 @@
   <div class="card" id="cal-detail"></div>
 </div>
 
+<!-- ============ FRIENDS ============ -->
+<div class="view" id="view-friends">
+  <div class="soc-banner" id="soc-banner">👀 Preview with sample friends — goes live once your account is connected.</div>
+  <div class="seg">
+    <button id="seg-lb" class="on" onclick="setSocialTab('leaderboard')">🏆 Leaderboard</button>
+    <button id="seg-feed" onclick="setSocialTab('feed')">📣 Feed</button>
+  </div>
+  <div id="soc-leaderboard">
+    <div class="card" id="lb-list"></div>
+    <button class="add-friend-btn" onclick="addFriendPrompt()">＋ Add friends</button>
+  </div>
+  <div id="soc-feed" style="display:none;"></div>
+</div>
+
 <!-- ============ NAV ============ -->
 <div class="nav">
   <button class="on" data-v="today" onclick="switchView('today')"><span class="ic">🏠</span>Today</button>
@@ -486,6 +557,7 @@
   <button data-v="workout" onclick="switchView('workout')"><span class="ic">💪</span>Workout</button>
   <button data-v="todo" onclick="switchView('todo')"><span class="ic">✓</span>To-Do</button>
   <button data-v="cal" onclick="switchView('cal')"><span class="ic">📅</span>Calendar</button>
+  <button data-v="friends" onclick="switchView('friends')"><span class="ic">👥</span>Friends</button>
 </div>
 
 <!-- ============ GOAL MODAL ============ -->
@@ -938,6 +1010,89 @@ function calSelect(k){
      <div class="cal-row ${d&&d.creatine?'ok':''}"><span>${d&&d.creatine?'✅':'⬜'} 💊 Creatine</span><b>${d&&d.creatine?'taken':'—'}</b></div>`;
 }
 
+/* ---------------- Social / Friends ---------------- */
+// Preset reactions (canned "comments") — keys match the `reactions.preset` column in schema.sql
+const REACTIONS = [
+  {key:'fire',    emoji:'🔥', label:'Fire'},
+  {key:'beast',   emoji:'💪', label:'Beast'},
+  {key:'lets_go', emoji:'🚀', label:"Let's go"},
+  {key:'clean',   emoji:'🥗', label:'Clean'},
+  {key:'respect', emoji:'🫡', label:'Respect'},
+];
+// Sample friends & feed — replaced by live Supabase data once the backend is connected.
+const DEMO_FRIENDS = [
+  {name:'Tasha K.', color:'#ff9d3b', streak:21, perfect:34, today:[1,1,1]},
+  {name:'Marcus',   color:'#3ba3ff', streak:12, perfect:19, today:[1,1,0]},
+  {name:'Jordan',   color:'#c56bff', streak:7,  perfect:11, today:[1,0,1]},
+  {name:'Devin',    color:'#ff5a5a', streak:3,  perfect:6,  today:[0,0,1]},
+];
+let DEMO_FEED = [
+  {name:'Tasha K.', color:'#ff9d3b', emoji:'💪', title:'Lower Body', detail:'6 exercises · Squat 245 lb PR', time:'2h ago', reactions:{fire:3, beast:1}, mine:{}},
+  {name:'Marcus',   color:'#3ba3ff', emoji:'🍽️', title:'Chicken, rice & broccoli', detail:'720 cal', time:'4h ago', reactions:{clean:2}, mine:{}},
+  {name:'Jordan',   color:'#c56bff', emoji:'✅', title:'Perfect day', detail:'Hit all 3 goals + creatine', time:'7h ago', reactions:{lets_go:2, respect:1}, mine:{}},
+  {name:'Devin',    color:'#ff5a5a', emoji:'💧', title:'Hit hydration goal', detail:'6 / 6 bottles', time:'9h ago', reactions:{fire:1}, mine:{}},
+  {name:'Tasha K.', color:'#ff9d3b', emoji:'💊', title:'Creatine done', detail:'21-day streak 🔥', time:'yesterday', reactions:{beast:2}, mine:{}},
+];
+let socialTab = 'leaderboard';
+
+function avatarHTML(name, color, size){
+  const init = (name||'?').trim()[0].toUpperCase();
+  const s = size ? `width:${size}px;height:${size}px;font-size:${Math.round(size*0.42)}px;` : '';
+  return `<div class="avatar" style="background:${color};${s}">${init}</div>`;
+}
+function myPerfectDays(){ return Object.keys(data.days).filter(k=>dayScore(k).n>=3).length; }
+
+function renderLeaderboard(){
+  const sc = dayScore(todayKey());
+  const you = {name:'You', me:true, color:'#a3ff12', streak:computeStreak(), perfect:myPerfectDays(),
+               today:[sc.water?1:0, sc.food?1:0, sc.wk?1:0]};
+  const all = [you, ...DEMO_FRIENDS].sort((a,b)=> (b.streak-a.streak) || (b.perfect-a.perfect));
+  const medals = ['🥇','🥈','🥉'];
+  document.getElementById('lb-list').innerHTML = all.map((f,i)=>{
+    const rank = i<3 ? `<div class="lb-rank medal">${medals[i]}</div>` : `<div class="lb-rank">${i+1}</div>`;
+    const dots = f.today.map(d=>`<i class="${d?'on':''}"></i>`).join('');
+    return `<div class="lb-row ${f.me?'row-me':''}">
+      ${rank}
+      ${avatarHTML(f.name, f.color)}
+      <div class="lb-body">
+        <div class="lb-name">${esc(f.name)}${f.me?'<span class="me-tag">YOU</span>':''}</div>
+        <div class="lb-sub">${f.perfect} perfect days</div>
+        <div class="lb-dots">${dots}</div>
+      </div>
+      <div class="lb-streak"><b>${f.streak}</b><span>🔥 streak</span></div>
+    </div>`;
+  }).join('');
+}
+function renderFeed(){
+  document.getElementById('soc-feed').innerHTML = DEMO_FEED.map((f,i)=>{
+    const chips = REACTIONS.map(r=>{
+      const count = (f.reactions[r.key]||0) + (f.mine[r.key]?1:0);
+      return `<button class="react-chip ${f.mine[r.key]?'on':''}" onclick="toggleReaction(${i},'${r.key}')">
+        <span class="em">${r.emoji}</span>${count?`<span class="ct">${count}</span>`:''}</button>`;
+    }).join('');
+    return `<div class="feed-card">
+      <div class="feed-top">
+        ${avatarHTML(f.name, f.color, 38)}
+        <div class="feed-who"><div class="n">${esc(f.name)}</div><div class="t">${esc(f.time)}</div></div>
+        <div class="feed-kind">${f.emoji}</div>
+      </div>
+      <div class="feed-body"><div class="ft">${esc(f.title)}</div><div class="fd">${esc(f.detail)}</div></div>
+      <div class="react-bar">${chips}</div>
+    </div>`;
+  }).join('');
+}
+function toggleReaction(i, key){ DEMO_FEED[i].mine[key] = !DEMO_FEED[i].mine[key]; renderFeed(); }
+function setSocialTab(t){
+  socialTab = t;
+  document.getElementById('seg-lb').classList.toggle('on', t==='leaderboard');
+  document.getElementById('seg-feed').classList.toggle('on', t==='feed');
+  document.getElementById('soc-leaderboard').style.display = t==='leaderboard' ? 'block' : 'none';
+  document.getElementById('soc-feed').style.display = t==='feed' ? 'block' : 'none';
+  renderFriends();
+}
+function renderFriends(){ if(socialTab==='leaderboard') renderLeaderboard(); else renderFeed(); }
+function addFriendPrompt(){ flash('👋 Friend search goes live once accounts are on'); }
+
 /* ---------------- Goal modal ---------------- */
 let goalKind='water', goalTemp=8;
 function openGoal(kind){
@@ -971,6 +1126,7 @@ function switchView(v){
   if(v==='workout')renderWorkout();
   if(v==='todo')renderTodo();
   if(v==='cal')renderCal();
+  if(v==='friends')renderFriends();
 }
 
 /* ---------------- Helpers ---------------- */

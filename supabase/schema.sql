@@ -75,7 +75,7 @@ create table if not exists public.reactions (
   id          uuid primary key default gen_random_uuid(),
   activity_id uuid not null references public.activities(id) on delete cascade,
   user_id     uuid not null references public.profiles(id) on delete cascade,
-  preset      text not null,     -- canned reaction key: 'fire','beast','lets_go','clean','respect'
+  preset      text not null,     -- canned reaction key: 'damn','work_on_it','clean'
   created_at  timestamptz not null default now(),
   unique (activity_id, user_id, preset)
 );

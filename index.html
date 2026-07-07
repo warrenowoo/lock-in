@@ -1013,11 +1013,9 @@ function calSelect(k){
 /* ---------------- Social / Friends ---------------- */
 // Preset reactions (canned "comments") — keys match the `reactions.preset` column in schema.sql
 const REACTIONS = [
-  {key:'fire',    emoji:'🔥', label:'Fire'},
-  {key:'beast',   emoji:'💪', label:'Beast'},
-  {key:'lets_go', emoji:'🚀', label:"Let's go"},
-  {key:'clean',   emoji:'🥗', label:'Clean'},
-  {key:'respect', emoji:'🫡', label:'Respect'},
+  {key:'damn',       emoji:'😬', label:'Dammmmnnnnnn'},
+  {key:'work_on_it', emoji:'🤨', label:'Erm better work on this'},
+  {key:'clean',      emoji:'✨', label:'Clean'},
 ];
 // Sample friends & feed — replaced by live Supabase data once the backend is connected.
 const DEMO_FRIENDS = [
@@ -1027,11 +1025,11 @@ const DEMO_FRIENDS = [
   {name:'Devin',    color:'#ff5a5a', streak:3,  perfect:6,  today:[0,0,1]},
 ];
 let DEMO_FEED = [
-  {name:'Tasha K.', color:'#ff9d3b', emoji:'💪', title:'Lower Body', detail:'6 exercises · Squat 245 lb PR', time:'2h ago', reactions:{fire:3, beast:1}, mine:{}},
-  {name:'Marcus',   color:'#3ba3ff', emoji:'🍽️', title:'Chicken, rice & broccoli', detail:'720 cal', time:'4h ago', reactions:{clean:2}, mine:{}},
-  {name:'Jordan',   color:'#c56bff', emoji:'✅', title:'Perfect day', detail:'Hit all 3 goals + creatine', time:'7h ago', reactions:{lets_go:2, respect:1}, mine:{}},
-  {name:'Devin',    color:'#ff5a5a', emoji:'💧', title:'Hit hydration goal', detail:'6 / 6 bottles', time:'9h ago', reactions:{fire:1}, mine:{}},
-  {name:'Tasha K.', color:'#ff9d3b', emoji:'💊', title:'Creatine done', detail:'21-day streak 🔥', time:'yesterday', reactions:{beast:2}, mine:{}},
+  {name:'Tasha K.', color:'#ff9d3b', emoji:'💪', title:'Lower Body', detail:'6 exercises · Squat 245 lb PR', time:'2h ago', reactions:{clean:3}, mine:{}},
+  {name:'Marcus',   color:'#3ba3ff', emoji:'🍽️', title:'Chicken, rice & broccoli', detail:'720 cal', time:'4h ago', reactions:{work_on_it:2, clean:1}, mine:{}},
+  {name:'Jordan',   color:'#c56bff', emoji:'✅', title:'Perfect day', detail:'Hit all 3 goals + creatine', time:'7h ago', reactions:{clean:2}, mine:{}},
+  {name:'Devin',    color:'#ff5a5a', emoji:'💧', title:'Hit hydration goal', detail:'6 / 6 bottles', time:'9h ago', reactions:{damn:1}, mine:{}},
+  {name:'Tasha K.', color:'#ff9d3b', emoji:'💊', title:'Creatine done', detail:'21-day streak 🔥', time:'yesterday', reactions:{clean:2, damn:1}, mine:{}},
 ];
 let socialTab = 'leaderboard';
 
@@ -1067,7 +1065,7 @@ function renderFeed(){
   document.getElementById('soc-feed').innerHTML = DEMO_FEED.map((f,i)=>{
     const chips = REACTIONS.map(r=>{
       const count = (f.reactions[r.key]||0) + (f.mine[r.key]?1:0);
-      return `<button class="react-chip ${f.mine[r.key]?'on':''}" onclick="toggleReaction(${i},'${r.key}')">
+      return `<button class="react-chip ${f.mine[r.key]?'on':''}" title="${esc(r.label)}" aria-label="${esc(r.label)}" onclick="toggleReaction(${i},'${r.key}')">
         <span class="em">${r.emoji}</span>${count?`<span class="ct">${count}</span>`:''}</button>`;
     }).join('');
     return `<div class="feed-card">

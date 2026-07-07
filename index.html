@@ -785,7 +785,7 @@ function load(){
   }catch(e){}
   return {days:{}, todos:[], goals:{water:6, food:3000}};
 }
-function save(){ localStorage.setItem(KEY, JSON.stringify(data)); }
+function save(){ localStorage.setItem(KEY, JSON.stringify(data)); if(typeof scheduleSync==='function') scheduleSync(); }
 // one-time migration: default water goal to 6 bottles
 if(!data.bottleMigrated){ data.goals.water = 6; data.bottleMigrated = true; save(); }
 // one-time migration: default calorie goal to 3000
@@ -871,6 +871,7 @@ function toggleCreatine(){
   const d = day();
   d.creatine = !d.creatine;
   save(); renderCreatine();
+  if(d.creatine) postActivity('creatine', 'Creatine done', creatineStreak()+'-day streak 🔥');
 }
 function creatineStreak(){
   let s = 0; const dt = new Date();
@@ -956,6 +957,7 @@ function addMeal(){
   day().meals.push({id:uid(), name, kcal, done:true, time:nowTime()});
   nameEl.value=''; kcalEl.value=''; nameEl.focus();
   save(); renderFood(); renderToday();
+  postActivity('meal', name, kcal ? kcal+' cal' : null);
 }
 function toggleMeal(id){
   const m = day().meals.find(x=>x.id===id);
@@ -1039,6 +1041,7 @@ function saveWorkout(){
   day().workouts.push({id:uid(), name, type:sessionType, em:r.em, exs, note, time:nowTime(), date:todayKey()});
   cancelSession();
   save(); renderWorkout(); renderToday();
+  postActivity('workout', name, exs.length ? exs.length+' exercise'+(exs.length>1?'s':'') : (note||'Logged a workout'));
   flash('💪 Workout saved!');
 }
 function delWorkout(dateKey,id){
@@ -1203,6 +1206,7 @@ function avatarHTML(name, color, size){
 function myPerfectDays(){ return Object.keys(data.days).filter(k=>dayScore(k).n>=3).length; }
 
 function renderLeaderboard(){
+  if(sbUser){ loadLeaderboard(); return; }
   const sc = dayScore(todayKey());
   const you = {name:'You', me:true, color:'#a3ff12', streak:computeStreak(), perfect:myPerfectDays(),
                today:[sc.water?1:0, sc.food?1:0, sc.wk?1:0]};
@@ -1224,6 +1228,7 @@ function renderLeaderboard(){
   }).join('');
 }
 function renderFeed(){
+  if(sbUser){ loadFeed(); return; }
   document.getElementById('soc-feed').innerHTML = DEMO_FEED.map((f,i)=>{
     const chips = REACTIONS.map(r=>{
       const count = (f.reactions[r.key]||0) + (f.mine[r.key]?1:0);
@@ -1250,7 +1255,7 @@ function setSocialTab(t){
   document.getElementById('soc-feed').style.display = t==='feed' ? 'block' : 'none';
   renderFriends();
 }
-function renderFriends(){ if(socialTab==='leaderboard') renderLeaderboard(); else renderFeed(); updateReqBadge(); }
+function renderFriends(){ if(socialTab==='leaderboard') renderLeaderboard(); else renderFeed(); if(sbUser) updateReqBadgeReal(); else updateReqBadge(); }
 // --- Add-friends flow (preview / mock; swaps to Supabase queries once live) ---
 let FRIEND_REQUESTS = [
   {name:'Priya R.', handle:'priyar', color:'#ff6bd6', sub:'2 mutual friends'},
@@ -1280,8 +1285,8 @@ function handleFor(name){ return name.toLowerCase().replace(/[^a-z0-9]/g,''); }
 function openFriendsModal(){
   document.getElementById('friend-search').value = '';
   document.getElementById('friend-results').innerHTML = '';
-  renderFriendRequests();
-  renderMyFriends();
+  if(sbUser){ loadFriendsData(); }
+  else { renderFriendRequests(); renderMyFriends(); }
   document.getElementById('friendsModal').classList.add('show');
 }
 function closeFriendsModal(){ document.getElementById('friendsModal').classList.remove('show'); }
@@ -1302,6 +1307,7 @@ function renderMyFriends(){
     : '<div class="fr-empty">No friends yet — search above to add some.</div>';
 }
 function searchFriends(){
+  if(sbUser){ searchFriendsReal(); return; }
   const q = document.getElementById('friend-search').value.trim().toLowerCase().replace('@','');
   const box = document.getElementById('friend-results');
   if(!q){ box.innerHTML=''; return; }
@@ -1320,6 +1326,164 @@ function acceptRequest(i){
   flash('✅ You and '+p.name.split(' ')[0]+' are now friends (preview)');
 }
 function declineRequest(i){ FRIEND_REQUESTS.splice(i,1); renderFriendRequests(); flash('Request dismissed'); }
+
+/* ---------------- Supabase social (LIVE data) ---------------- */
+const AV_COLORS=['#ff9d3b','#3ba3ff','#c56bff','#ff5a5a','#2fbf5b','#ff6bd6','#a3ff12','#4db1ff'];
+function colorFor(s){ s=s||'?'; let h=0; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return AV_COLORS[h%AV_COLORS.length]; }
+function nameOf(p){ return (p.display_name && p.display_name.trim()) ? p.display_name : ('@'+p.username); }
+const KIND_EMOJI={workout:'💪',meal:'🍽️',creatine:'💊',water_goal:'💧',perfect_day:'✅'};
+function timeAgo(iso){
+  const s=Math.max(1,Math.floor((Date.now()-new Date(iso).getTime())/1000));
+  if(s<60) return 'just now';
+  const m=Math.floor(s/60); if(m<60) return m+'m ago';
+  const h=Math.floor(m/60); if(h<24) return h+'h ago';
+  const d=Math.floor(h/24); if(d===1) return 'yesterday'; if(d<7) return d+'d ago';
+  return new Date(iso).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+}
+async function getFriendIds(){
+  const { data, error } = await sb.from('friendships').select('requester_id,addressee_id')
+    .eq('status','accepted').or(`requester_id.eq.${sbUser.id},addressee_id.eq.${sbUser.id}`);
+  if(error||!data) return [];
+  return data.map(f=> f.requester_id===sbUser.id ? f.addressee_id : f.requester_id);
+}
+
+/* --- push local data up --- */
+let syncTimer=null;
+function scheduleSync(){ if(!sb||!sbUser) return; clearTimeout(syncTimer); syncTimer=setTimeout(syncUp,1200); }
+async function syncUp(){
+  if(!sb||!sbUser) return;
+  const k=todayKey(), d=day(k), sc=dayScore(k);
+  const cals=d.meals.reduce((s,m)=>s+(m.kcal||0),0);
+  try{
+    await sb.from('daily_stats').upsert({user_id:sbUser.id,day:k,water:d.water,water_goal:data.goals.water,
+      calories:cals,calorie_goal:data.goals.food,workouts:d.workouts.length,creatine:!!d.creatine,score:sc.n},
+      {onConflict:'user_id,day'});
+    await sb.from('profiles').update({current_streak:computeStreak(),perfect_days:myPerfectDays(),last_active:k}).eq('id',sbUser.id);
+  }catch(e){}
+}
+async function postActivity(kind,title,detail){
+  if(!sb||!sbUser) return;
+  try{ await sb.from('activities').insert({user_id:sbUser.id,kind,title,detail:detail||null,day:todayKey()}); }catch(e){}
+}
+
+/* --- leaderboard --- */
+async function loadLeaderboard(){
+  const box=document.getElementById('lb-list');
+  const fids=await getFriendIds();
+  const ids=[sbUser.id,...fids];
+  const [{data:profs},{data:stats}]=await Promise.all([
+    sb.from('profiles').select('id,username,display_name,current_streak,perfect_days').in('id',ids),
+    sb.from('daily_stats').select('user_id,water,water_goal,calories,calorie_goal,workouts').eq('day',todayKey()).in('user_id',ids)
+  ]);
+  const sm={}; (stats||[]).forEach(s=>sm[s.user_id]=s);
+  const rows=(profs||[]).map(p=>{
+    const s=sm[p.id]||{};
+    const today=[ (s.water>=(s.water_goal||6))?1:0, (s.calories>=(s.calorie_goal||3000))?1:0, (s.workouts>=1)?1:0 ];
+    return {id:p.id,name:nameOf(p),me:p.id===sbUser.id,color:colorFor(p.username),streak:p.current_streak||0,perfect:p.perfect_days||0,today};
+  }).sort((a,b)=>(b.streak-a.streak)||(b.perfect-a.perfect));
+  const medals=['🥇','🥈','🥉'];
+  box.innerHTML=rows.map((f,i)=>{
+    const rank=i<3?`<div class="lb-rank medal">${medals[i]}</div>`:`<div class="lb-rank">${i+1}</div>`;
+    const dots=f.today.map(d=>`<i class="${d?'on':''}"></i>`).join('');
+    return `<div class="lb-row ${f.me?'row-me':''}">${rank}${avatarHTML(f.name,f.color)}
+      <div class="lb-body"><div class="lb-name">${esc(f.name)}${f.me?'<span class="me-tag">YOU</span>':''}</div>
+      <div class="lb-sub">${f.perfect} perfect days</div><div class="lb-dots">${dots}</div></div>
+      <div class="lb-streak"><b>${f.streak}</b><span>🔥 streak</span></div></div>`;
+  }).join('');
+  if(rows.length<=1) box.innerHTML+='<div class="fr-empty" style="padding:16px 2px;text-align:center;">Add friends to fill the board 👇</div>';
+}
+
+/* --- feed --- */
+async function loadFeed(){
+  const box=document.getElementById('soc-feed');
+  const fids=await getFriendIds();
+  const ids=[sbUser.id,...fids];
+  const {data:acts}=await sb.from('activities').select('*').in('user_id',ids).order('created_at',{ascending:false}).limit(40);
+  if(!acts||!acts.length){ box.innerHTML='<div class="feed-card"><div class="fr-empty">No activity yet — log a workout or meal, or add friends to see theirs.</div></div>'; return; }
+  const uids=[...new Set(acts.map(a=>a.user_id))], aids=acts.map(a=>a.id);
+  const [{data:profs},{data:reacts}]=await Promise.all([
+    sb.from('profiles').select('id,username,display_name').in('id',uids),
+    sb.from('reactions').select('activity_id,preset,user_id').in('activity_id',aids)
+  ]);
+  const pm={}; (profs||[]).forEach(p=>pm[p.id]=p);
+  const rm={}; (reacts||[]).forEach(r=>{ (rm[r.activity_id]=rm[r.activity_id]||[]).push(r); });
+  box.innerHTML=acts.map(a=>{
+    const p=pm[a.user_id]||{username:'user'}, rs=rm[a.id]||[];
+    const chips=REACTIONS.map(r=>{
+      const count=rs.filter(x=>x.preset===r.key).length;
+      const mine=rs.some(x=>x.preset===r.key&&x.user_id===sbUser.id);
+      return `<button class="react-chip ${mine?'on':''}" title="${esc(r.label)}" onclick="rxToggle('${a.id}','${r.key}')"><span class="em">${r.emoji}</span>${count?`<span class="ct">${count}</span>`:''}</button>`;
+    }).join('');
+    return `<div class="feed-card"><div class="feed-top">${avatarHTML(nameOf(p),colorFor(p.username),38)}
+      <div class="feed-who"><div class="n">${esc(nameOf(p))}</div><div class="t">${timeAgo(a.created_at)}</div></div>
+      <div class="feed-kind">${KIND_EMOJI[a.kind]||'✨'}</div></div>
+      <div class="feed-body"><div class="ft">${esc(a.title)}</div>${a.detail?`<div class="fd">${esc(a.detail)}</div>`:''}</div>
+      <div class="react-bar">${chips}</div></div>`;
+  }).join('');
+}
+async function rxToggle(activityId,preset){
+  const {data:ex}=await sb.from('reactions').select('id').eq('activity_id',activityId).eq('user_id',sbUser.id).eq('preset',preset).maybeSingle();
+  if(ex) await sb.from('reactions').delete().eq('id',ex.id);
+  else await sb.from('reactions').insert({activity_id:activityId,user_id:sbUser.id,preset});
+  loadFeed();
+}
+
+/* --- friends modal (live) --- */
+async function updateReqBadgeReal(){
+  if(!sb||!sbUser) return;
+  const {count}=await sb.from('friendships').select('id',{count:'exact',head:true}).eq('addressee_id',sbUser.id).eq('status','pending');
+  const b=document.getElementById('req-count'); if(b){ b.textContent=count||0; b.style.display=count?'inline-block':'none'; }
+}
+async function loadFriendsData(){
+  const {data:reqs}=await sb.from('friendships').select('id,requester_id').eq('addressee_id',sbUser.id).eq('status','pending');
+  const rIds=(reqs||[]).map(r=>r.requester_id);
+  const rProfs= rIds.length ? (await sb.from('profiles').select('id,username,display_name').in('id',rIds)).data : [];
+  const rpm={}; (rProfs||[]).forEach(p=>rpm[p.id]=p);
+  document.getElementById('friend-requests').innerHTML=(reqs&&reqs.length)? reqs.map(r=>{
+    const p=rpm[r.requester_id]||{username:'user'};
+    return frRowHTML({name:nameOf(p),handle:p.username,color:colorFor(p.username)},
+      `<button class="fr-btn accept" onclick="reqAccept('${r.id}')">Accept</button><button class="fr-btn decline" onclick="reqDecline('${r.id}')">✕</button>`);
+  }).join('') : '<div class="fr-empty">No pending requests.</div>';
+  const b=document.getElementById('req-count'); if(b){ b.textContent=(reqs||[]).length; b.style.display=(reqs&&reqs.length)?'inline-block':'none'; }
+  const fids=await getFriendIds();
+  const fProfs= fids.length ? (await sb.from('profiles').select('id,username,display_name,current_streak').in('id',fids)).data : [];
+  document.getElementById('friend-list').innerHTML=(fProfs&&fProfs.length)? fProfs.map(p=>frRowHTML(
+    {name:nameOf(p),handle:p.username,color:colorFor(p.username),sub:(p.current_streak||0)+'🔥 streak'},
+    `<button class="fr-btn decline" onclick="unfriend('${p.id}')">Remove</button>`)).join('')
+    : '<div class="fr-empty">No friends yet — search by username above.</div>';
+}
+async function searchFriendsReal(){
+  const q=document.getElementById('friend-search').value.trim().toLowerCase().replace('@','');
+  const box=document.getElementById('friend-results');
+  if(!q){ box.innerHTML=''; return; }
+  const {data}=await sb.from('profiles').select('id,username,display_name').ilike('username','%'+q+'%').neq('id',sbUser.id).limit(10);
+  if(!data||!data.length){ box.innerHTML=`<div class="fr-empty">No one found for "${esc(q)}".</div>`; return; }
+  const {data:rel}=await sb.from('friendships').select('requester_id,addressee_id,status').or(`requester_id.eq.${sbUser.id},addressee_id.eq.${sbUser.id}`);
+  const rmap={}; (rel||[]).forEach(f=>{ const o=f.requester_id===sbUser.id?f.addressee_id:f.requester_id; rmap[o]=f.status; });
+  box.innerHTML=data.map(p=>{
+    const st=rmap[p.id];
+    const btn= st==='accepted'?`<button class="fr-btn pending" disabled>Friends</button>`
+      : st==='pending'?`<button class="fr-btn pending" disabled>Pending</button>`
+      : `<button class="fr-btn add" onclick="reqSend('${p.id}',this)">Add</button>`;
+    return frRowHTML({name:nameOf(p),handle:p.username,color:colorFor(p.username)}, btn);
+  }).join('');
+}
+async function reqSend(userId,btn){
+  const {error}=await sb.from('friendships').insert({requester_id:sbUser.id,addressee_id:userId,status:'pending'});
+  if(error){ flash('Could not send: '+error.message); return; }
+  if(btn) btn.outerHTML='<button class="fr-btn pending" disabled>Pending</button>';
+  flash('👋 Friend request sent');
+}
+async function reqAccept(fid){
+  const {error}=await sb.from('friendships').update({status:'accepted',updated_at:new Date().toISOString()}).eq('id',fid);
+  if(error){ flash('Error: '+error.message); return; }
+  flash('✅ Friend added'); loadFriendsData();
+}
+async function reqDecline(fid){ await sb.from('friendships').delete().eq('id',fid); flash('Request dismissed'); loadFriendsData(); }
+async function unfriend(uid){
+  await sb.from('friendships').delete().or(`and(requester_id.eq.${sbUser.id},addressee_id.eq.${uid}),and(requester_id.eq.${uid},addressee_id.eq.${sbUser.id})`);
+  flash('Friend removed'); loadFriendsData();
+}
 
 /* ---------------- Login ---------------- */
 function showLogin(){ document.getElementById('login-screen').style.display='flex'; }
@@ -1382,6 +1546,8 @@ async function onAuth(session){
     await loadProfile();
     document.getElementById('login-screen').style.display = 'none';
     localStorage.setItem('lockin_seen_login','1');
+    syncUp();
+    if(document.getElementById('view-friends').classList.contains('active')) renderFriends();
   } else {
     sbProfile = null;
   }

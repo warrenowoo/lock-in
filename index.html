@@ -216,6 +216,73 @@
   .wk-wt{color:var(--accent);font-weight:700;}
   .wk-note{font-size:13px;color:var(--muted);font-style:italic;margin-top:8px;}
 
+  /* Login screen */
+  #login-screen{
+    position:fixed;inset:0;z-index:300;background:var(--bg);
+    display:none;flex-direction:column;align-items:center;justify-content:center;
+    padding:calc(env(safe-area-inset-top) + 40px) 28px calc(env(safe-area-inset-bottom) + 34px);
+    text-align:center;
+  }
+  .login-inner{width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;}
+  .login-logo{
+    width:88px;height:88px;border-radius:24px;
+    background:linear-gradient(135deg,var(--accent),var(--accent-dim));
+    display:flex;align-items:center;justify-content:center;color:#0d0f0e;font-weight:900;font-size:50px;
+    margin-bottom:22px;box-shadow:0 12px 44px rgba(163,255,18,.22);
+  }
+  .login-title{font-size:34px;letter-spacing:-1px;margin-bottom:10px;}
+  .login-tag{font-size:15px;color:var(--muted);line-height:1.5;}
+  .login-actions{width:100%;display:flex;flex-direction:column;gap:12px;margin-top:44px;}
+  .login-btn{
+    width:100%;padding:16px;border-radius:14px;font-size:16px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;gap:9px;transition:transform .1s;
+  }
+  .login-btn:active{transform:scale(.98);}
+  .login-btn.apple{background:#fff;color:#000;}
+  .login-btn.apple svg{margin-top:-2px;}
+  .login-btn.email{background:var(--surface-2);color:var(--text);border:1px solid var(--line);}
+  .login-skip{margin-top:4px;color:var(--muted);font-size:14px;font-weight:600;padding:10px;}
+  .login-note{font-size:12px;color:var(--muted);margin-top:22px;opacity:.85;max-width:300px;line-height:1.5;}
+
+  /* Floating action button (Water / Food / Workout / To-Do) */
+  .fab-scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55;display:none;}
+  .fab-scrim.show{display:block;animation:fade .2s;}
+  .fab-wrap{
+    position:fixed;right:18px;bottom:calc(env(safe-area-inset-bottom) + 80px);
+    z-index:60;display:flex;flex-direction:column;align-items:flex-end;gap:14px;
+  }
+  .fab{
+    width:58px;height:58px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent-dim));color:#0d0f0e;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 8px 26px rgba(0,0,0,.5);transition:transform .2s;
+  }
+  .fab:active{transform:scale(.92);}
+  .fab #fabIcon{font-size:34px;font-weight:300;line-height:1;transition:transform .28s cubic-bezier(.2,.9,.3,1);}
+  .fab-wrap.open .fab #fabIcon{transform:rotate(135deg);}
+  .fab-menu{display:flex;flex-direction:column;align-items:flex-end;gap:13px;}
+  .fab-item{
+    display:flex;align-items:center;gap:11px;
+    opacity:0;transform:translateY(14px) scale(.8);pointer-events:none;
+    transition:opacity .2s ease, transform .2s cubic-bezier(.2,.9,.3,1);
+  }
+  .fab-wrap.open .fab-item{opacity:1;transform:none;pointer-events:auto;}
+  .fab-wrap.open .fab-item:nth-child(4){transition-delay:.02s;}
+  .fab-wrap.open .fab-item:nth-child(3){transition-delay:.06s;}
+  .fab-wrap.open .fab-item:nth-child(2){transition-delay:.10s;}
+  .fab-wrap.open .fab-item:nth-child(1){transition-delay:.14s;}
+  .fab-item .lbl{
+    background:var(--surface);border:1px solid var(--line);color:var(--text);
+    padding:7px 12px;border-radius:10px;font-size:13.5px;font-weight:700;
+    box-shadow:0 3px 12px rgba(0,0,0,.35);
+  }
+  .fab-item .ic{
+    width:50px;height:50px;border-radius:50%;
+    background:var(--surface-2);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-size:23px;
+    box-shadow:0 4px 16px rgba(0,0,0,.45);
+  }
+
   /* Bottom nav */
   .nav{
     position:fixed;bottom:0;left:0;right:0;
@@ -226,7 +293,7 @@
   }
   .nav button{
     flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
-    padding:6px 1px;color:var(--muted);font-size:10px;font-weight:600;border-radius:12px;
+    padding:7px 2px;color:var(--muted);font-size:11px;font-weight:600;border-radius:12px;
     white-space:nowrap;
   }
   .nav button .ic{font-size:21px;line-height:1;filter:grayscale(1) opacity(.6);transition:.15s;}
@@ -298,7 +365,7 @@
   .soc-banner{
     background:rgba(163,255,18,.09);border:1px solid var(--accent-dim);
     color:var(--accent);font-size:12.5px;font-weight:600;
-    padding:10px 14px;border-radius:12px;margin:2px 2px 14px;text-align:center;
+    padding:10px 14px;border-radius:12px;margin:2px 2px 14px;text-align:center;cursor:pointer;
   }
   .seg{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:5px;margin-bottom:14px;}
   .seg button{flex:1;padding:11px;border-radius:10px;font-size:14px;font-weight:700;color:var(--muted);transition:.15s;}
@@ -353,6 +420,24 @@
 </style>
 </head>
 <body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login-screen">
+  <div class="login-inner">
+    <div class="login-logo">L</div>
+    <h1 class="login-title">Lock-In</h1>
+    <p class="login-tag">Lock in your daily habits.<br>Water, food, workouts &amp; friends.</p>
+    <div class="login-actions">
+      <button class="login-btn apple" onclick="signInApple()">
+        <svg viewBox="0 0 384 512" width="17" height="17" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+        Sign in with Apple
+      </button>
+      <button class="login-btn email" onclick="signInEmail()">Continue with Email</button>
+      <button class="login-skip" onclick="closeLogin()">Continue without an account →</button>
+    </div>
+    <p class="login-note">Accounts unlock friends &amp; cross-device sync — coming online soon. Your data stays on your device until then.</p>
+  </div>
+</div>
 
 <div class="app-header">
   <div class="logo">
@@ -537,7 +622,7 @@
 
 <!-- ============ FRIENDS ============ -->
 <div class="view" id="view-friends">
-  <div class="soc-banner" id="soc-banner">👀 Preview with sample friends — goes live once your account is connected.</div>
+  <div class="soc-banner" id="soc-banner" onclick="showLogin()">👀 Preview with sample friends — tap to sign in &amp; go live.</div>
   <div class="seg">
     <button id="seg-lb" class="on" onclick="setSocialTab('leaderboard')">🏆 Leaderboard</button>
     <button id="seg-feed" onclick="setSocialTab('feed')">📣 Feed</button>
@@ -549,13 +634,21 @@
   <div id="soc-feed" style="display:none;"></div>
 </div>
 
+<!-- ============ QUICK-ADD FAB ============ -->
+<div class="fab-scrim" id="fabScrim" onclick="closeFab()"></div>
+<div class="fab-wrap" id="fabWrap">
+  <div class="fab-menu">
+    <button class="fab-item" onclick="fabGo('water')"><span class="lbl">Water</span><span class="ic">💧</span></button>
+    <button class="fab-item" onclick="fabGo('food')"><span class="lbl">Food</span><span class="ic">🍽️</span></button>
+    <button class="fab-item" onclick="fabGo('workout')"><span class="lbl">Workout</span><span class="ic">💪</span></button>
+    <button class="fab-item" onclick="fabGo('todo')"><span class="lbl">To-Do</span><span class="ic">✓</span></button>
+  </div>
+  <button class="fab" id="fab" onclick="toggleFab()" aria-label="Quick add"><span id="fabIcon">＋</span></button>
+</div>
+
 <!-- ============ NAV ============ -->
 <div class="nav">
   <button class="on" data-v="today" onclick="switchView('today')"><span class="ic">🏠</span>Today</button>
-  <button data-v="water" onclick="switchView('water')"><span class="ic">💧</span>Water</button>
-  <button data-v="food" onclick="switchView('food')"><span class="ic">🍽️</span>Food</button>
-  <button data-v="workout" onclick="switchView('workout')"><span class="ic">💪</span>Workout</button>
-  <button data-v="todo" onclick="switchView('todo')"><span class="ic">✓</span>To-Do</button>
   <button data-v="cal" onclick="switchView('cal')"><span class="ic">📅</span>Calendar</button>
   <button data-v="friends" onclick="switchView('friends')"><span class="ic">👥</span>Friends</button>
 </div>
@@ -1091,6 +1184,30 @@ function setSocialTab(t){
 function renderFriends(){ if(socialTab==='leaderboard') renderLeaderboard(); else renderFeed(); }
 function addFriendPrompt(){ flash('👋 Friend search goes live once accounts are on'); }
 
+/* ---------------- Login ---------------- */
+function showLogin(){ document.getElementById('login-screen').style.display='flex'; }
+function closeLogin(){
+  document.getElementById('login-screen').style.display='none';
+  localStorage.setItem('lockin_seen_login','1');
+}
+function signInApple(){ closeLogin(); flash('🍎 Apple Sign-In goes live once your backend is connected'); }
+function signInEmail(){ closeLogin(); flash('✉️ Email sign-in goes live once your backend is connected'); }
+
+/* ---------------- Quick-add FAB ---------------- */
+let fabOpen = false;
+function toggleFab(){ fabOpen ? closeFab() : openFab(); }
+function openFab(){
+  fabOpen = true;
+  document.getElementById('fabWrap').classList.add('open');
+  document.getElementById('fabScrim').classList.add('show');
+}
+function closeFab(){
+  fabOpen = false;
+  document.getElementById('fabWrap').classList.remove('open');
+  document.getElementById('fabScrim').classList.remove('show');
+}
+function fabGo(v){ closeFab(); switchView(v); }
+
 /* ---------------- Goal modal ---------------- */
 let goalKind='water', goalTemp=8;
 function openGoal(kind){
@@ -1141,6 +1258,7 @@ function flash(msg){
 /* ---------------- Init ---------------- */
 renderHeader();
 renderToday();
+if(!localStorage.getItem('lockin_seen_login')) showLogin();
 setInterval(renderHeader, 60000);
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(()=>{});

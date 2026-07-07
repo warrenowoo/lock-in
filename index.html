@@ -243,6 +243,14 @@
   .login-btn.email{background:var(--surface-2);color:var(--text);border:1px solid var(--line);}
   .login-skip{margin-top:4px;color:var(--muted);font-size:14px;font-weight:600;padding:10px;}
   .login-note{font-size:12px;color:var(--muted);margin-top:22px;opacity:.85;max-width:300px;line-height:1.5;}
+  .login-email{display:none;flex-direction:column;gap:10px;margin-top:2px;}
+  .login-email.show{display:flex;}
+  .email-tabs{display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;}
+  .email-tabs button{flex:1;padding:10px;border-radius:9px;font-size:14px;font-weight:700;color:var(--muted);}
+  .email-tabs button.on{background:var(--surface-2);color:var(--text);}
+  .auth-in{background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:14px;font-size:16px;outline:none;width:100%;}
+  .auth-in:focus{border-color:var(--accent-dim);}
+  .auth-err{font-size:13px;color:var(--red);min-height:4px;padding:0 2px;text-align:left;}
 
   /* Floating action button (Water / Food / Workout / To-Do) */
   .fab-scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55;display:none;}
@@ -450,7 +458,18 @@
         <svg viewBox="0 0 384 512" width="17" height="17" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
         Sign in with Apple
       </button>
-      <button class="login-btn email" onclick="signInEmail()">Continue with Email</button>
+      <button class="login-btn email" id="email-toggle-btn" onclick="revealEmail()">Continue with Email</button>
+      <div class="login-email" id="loginEmail">
+        <div class="email-tabs">
+          <button id="et-signin" class="on" onclick="setAuthMode('signin')">Sign in</button>
+          <button id="et-signup" onclick="setAuthMode('signup')">Create account</button>
+        </div>
+        <input id="au-username" class="auth-in" placeholder="Username" autocapitalize="none" autocomplete="username" style="display:none;">
+        <input id="au-email" class="auth-in" placeholder="Email" type="email" autocapitalize="none" autocomplete="email">
+        <input id="au-pass" class="auth-in" placeholder="Password" type="password" autocomplete="current-password">
+        <div class="auth-err" id="au-err"></div>
+        <button class="login-btn apple" id="au-submit" onclick="submitAuth()">Sign in</button>
+      </div>
       <button class="login-skip" onclick="closeLogin()">Continue without an account →</button>
     </div>
     <p class="login-note">Accounts unlock friends &amp; cross-device sync — coming online soon. Your data stays on your device until then.</p>
@@ -710,7 +729,14 @@
   </div>
 </div>
 
+<script src="supabase-js.js"></script>
 <script>
+/* ---------------- Supabase ---------------- */
+const SB_URL = 'https://fnbbupsrvoedepcrwtlb.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuYmJ1cHNydm9lZGVwY3J3dGxiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NDg1OTYsImV4cCI6MjA5OTAyNDU5Nn0.UeTYW5m97MM4SAkds3uvMgtkiggT7d49l1o2MK_Rbmc';
+const sb = (window.supabase) ? window.supabase.createClient(SB_URL, SB_ANON, {auth:{persistSession:true, autoRefreshToken:true}}) : null;
+let sbUser = null, sbProfile = null;
+
 /* ---------------- Storage ---------------- */
 const KEY = 'lockin_data_v1';
 const ML_PER_BOTTLE = 500;
@@ -1301,8 +1327,85 @@ function closeLogin(){
   document.getElementById('login-screen').style.display='none';
   localStorage.setItem('lockin_seen_login','1');
 }
-function signInApple(){ closeLogin(); flash('🍎 Apple Sign-In goes live once your backend is connected'); }
-function signInEmail(){ closeLogin(); flash('✉️ Email sign-in goes live once your backend is connected'); }
+let authMode = 'signin';
+function signInApple(){ flash('🍎 Apple Sign-In activates once your Apple Developer account is connected'); }
+function revealEmail(){
+  document.getElementById('loginEmail').classList.add('show');
+  const b = document.getElementById('email-toggle-btn'); if(b) b.style.display='none';
+}
+function setAuthMode(m){
+  authMode = m;
+  document.getElementById('et-signin').classList.toggle('on', m==='signin');
+  document.getElementById('et-signup').classList.toggle('on', m==='signup');
+  document.getElementById('au-username').style.display = m==='signup' ? 'block' : 'none';
+  document.getElementById('au-submit').textContent = m==='signup' ? 'Create account' : 'Sign in';
+  document.getElementById('au-err').textContent = '';
+}
+function authErr(msg){ document.getElementById('au-err').textContent = msg || ''; }
+async function submitAuth(){
+  if(!sb){ authErr('Backend not connected.'); return; }
+  const email = document.getElementById('au-email').value.trim();
+  const pass  = document.getElementById('au-pass').value;
+  if(!email || !pass){ authErr('Enter your email and password.'); return; }
+  const btn = document.getElementById('au-submit'); const orig = btn.textContent;
+  btn.disabled = true; btn.textContent = '…'; authErr('');
+  try{
+    if(authMode === 'signup'){
+      const username = document.getElementById('au-username').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
+      if(username.length < 3){ authErr('Pick a username — 3+ letters/numbers.'); return; }
+      const { data, error } = await sb.auth.signUp({ email, password: pass });
+      if(error){ authErr(error.message); return; }
+      if(!data.session){ authErr('Account made — check your email to confirm, then sign in.'); return; }
+      const { error: e2 } = await sb.from('profiles').update({ username }).eq('id', data.user.id);
+      if(e2){ authErr(/duplicate|unique/i.test(e2.message) ? 'That username is taken — try another.' : e2.message); return; }
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+      if(error){ authErr(error.message); return; }
+    }
+    // success → onAuthStateChange updates the UI and hides the login screen
+  } catch(err){ authErr(String(err && err.message || err)); }
+  finally { btn.disabled = false; btn.textContent = orig; }
+}
+async function signOut(){ if(sb) await sb.auth.signOut(); sbUser=null; sbProfile=null; updateAccountUI(); showLogin(); }
+
+async function sbInit(){
+  if(!sb) return;
+  try{
+    const { data } = await sb.auth.getSession();
+    await onAuth(data.session);
+    sb.auth.onAuthStateChange((_e, session)=>{ onAuth(session); });
+  } catch(e){}
+}
+async function onAuth(session){
+  sbUser = (session && session.user) ? session.user : null;
+  if(sbUser){
+    await loadProfile();
+    document.getElementById('login-screen').style.display = 'none';
+    localStorage.setItem('lockin_seen_login','1');
+  } else {
+    sbProfile = null;
+  }
+  updateAccountUI();
+}
+async function loadProfile(){
+  if(!sb || !sbUser) return;
+  const { data } = await sb.from('profiles').select('*').eq('id', sbUser.id).maybeSingle();
+  sbProfile = data || null;
+}
+function updateAccountUI(){
+  const banner = document.getElementById('soc-banner');
+  if(banner){
+    if(sbUser){
+      banner.textContent = '✅ Signed in as @'+(sbProfile ? sbProfile.username : '…')+' — tap to sign out';
+      banner.onclick = ()=>{ if(confirm('Sign out of Lock-In?')) signOut(); };
+    } else {
+      banner.textContent = '👀 Preview with sample friends — tap to sign in & go live.';
+      banner.onclick = showLogin;
+    }
+  }
+  const h = document.getElementById('my-handle');
+  if(h && sbProfile) h.textContent = '@'+sbProfile.username;
+}
 
 /* ---------------- Quick-add FAB ---------------- */
 let fabOpen = false;
@@ -1370,8 +1473,8 @@ function flash(msg){
 /* ---------------- Init ---------------- */
 renderHeader();
 renderToday();
-if(!localStorage.getItem('lockin_seen_login')) showLogin();
 setInterval(renderHeader, 60000);
+sbInit().then(()=>{ if(!sbUser && !localStorage.getItem('lockin_seen_login')) showLogin(); });
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
   // When a new version takes over, reload once so the update shows immediately.

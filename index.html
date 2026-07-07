@@ -258,6 +258,7 @@
   .auth-in{background:var(--surface-2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:14px;font-size:16px;outline:none;width:100%;}
   .auth-in:focus{border-color:var(--accent-dim);}
   .auth-err{font-size:13px;color:var(--red);min-height:4px;padding:0 2px;text-align:left;}
+  .login-msg{font-size:13px;color:var(--red);min-height:2px;padding:2px 6px;text-align:center;line-height:1.4;}
 
   /* Floating action button (Water / Food / Workout / To-Do) */
   .fab-scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55;display:none;}
@@ -478,6 +479,7 @@
         <svg viewBox="0 0 384 512" width="17" height="17" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
         Sign in with Apple
       </button>
+      <div class="login-msg" id="login-msg"></div>
       <button class="login-btn email" id="email-toggle-btn" onclick="revealEmail()">Continue with Email</button>
       <div class="login-email" id="loginEmail">
         <div class="email-tabs">
@@ -1578,6 +1580,10 @@ async function sha256hex(str){
   const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
   return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
+function appleMsg(t, ok){
+  const m = document.getElementById('login-msg');
+  if(m){ m.textContent = t || ''; m.style.color = ok ? 'var(--accent)' : 'var(--red)'; }
+}
 async function signInApple(){
   const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
   const plugin = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.SignInWithApple;
@@ -1585,24 +1591,31 @@ async function signInApple(){
     flash('🍎 Sign in with Apple works in the iPhone app. On the web, use email.');
     return;
   }
-  if(!sb){ flash('Backend not connected.'); return; }
+  if(!sb){ appleMsg('Backend not connected.'); return; }
+  appleMsg('Opening Apple…', true);
   try{
     const rawNonce = randNonce(32);
     const hashed = await sha256hex(rawNonce);
-    const res = await plugin.authorize({ scopes: 'email name', nonce: hashed });
+    let res;
+    try{ res = await plugin.authorize({ scopes: 'email name', nonce: hashed }); }
+    catch(e){
+      const m = String(e && (e.message || e));
+      if(/cancel|1001/i.test(m)){ appleMsg(''); return; }
+      appleMsg('Apple error: '+m); return;
+    }
     const idToken = res && res.response && res.response.identityToken;
-    if(!idToken) return; // cancelled / no token
+    if(!idToken){ appleMsg('Apple returned no identity token.'); return; }
+    appleMsg('Verifying with Lock-In…', true);
     const { error } = await sb.auth.signInWithIdToken({ provider:'apple', token: idToken, nonce: rawNonce });
-    if(error){ flash('Apple sign-in error: '+error.message); return; }
+    if(error){ appleMsg('Sign-in rejected: '+error.message); return; }
     // Apple only returns the name on the very first sign-in — capture it as display name.
     const dn = [res.response.givenName, res.response.familyName].filter(Boolean).join(' ').trim();
-    if(dn){ const u=(await sb.auth.getUser()).data.user; if(u) await sb.from('profiles').update({ display_name: dn }).eq('id', u.id); }
+    if(dn){ try{ const u=(await sb.auth.getUser()).data.user; if(u) await sb.from('profiles').update({ display_name: dn }).eq('id', u.id); }catch(e){} }
     const sess = (await sb.auth.getSession()).data.session;
-    if(sess) await onAuth(sess);
+    if(sess){ appleMsg(''); await onAuth(sess); }
+    else { appleMsg('Signed in but no session came back — tap again.'); }
   } catch(e){
-    const msg = String(e && (e.message || e));
-    if(/cancel|1001/i.test(msg)) return; // user tapped cancel
-    flash('Apple sign-in failed: '+msg);
+    appleMsg('Apple sign-in failed: '+String(e && (e.message || e)));
   }
 }
 function revealEmail(){

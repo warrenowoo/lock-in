@@ -1568,7 +1568,8 @@ async function signInApple(){
     // Apple only returns the name on the very first sign-in — capture it as display name.
     const dn = [res.response.givenName, res.response.familyName].filter(Boolean).join(' ').trim();
     if(dn){ const u=(await sb.auth.getUser()).data.user; if(u) await sb.from('profiles').update({ display_name: dn }).eq('id', u.id); }
-    await loadProfile(); updateAccountUI();
+    const sess = (await sb.auth.getSession()).data.session;
+    if(sess) await onAuth(sess);
   } catch(e){
     const msg = String(e && (e.message || e));
     if(/cancel|1001/i.test(msg)) return; // user tapped cancel
@@ -1608,7 +1609,10 @@ async function submitAuth(){
       const { error } = await sb.auth.signInWithPassword({ email, password: pass });
       if(error){ authErr(error.message); return; }
     }
-    // success → onAuthStateChange updates the UI and hides the login screen
+    // Drive the UI directly (don't rely only on the auth-state listener, which can lag in a native WebView).
+    const sess = (await sb.auth.getSession()).data.session;
+    if(sess){ await onAuth(sess); }
+    else { authErr('Signed in but no session returned — check your email is confirmed, or try again.'); }
   } catch(err){ authErr(String(err && err.message || err)); }
   finally { btn.disabled = false; btn.textContent = orig; }
 }
@@ -1625,11 +1629,12 @@ async function sbInit(){
 async function onAuth(session){
   sbUser = (session && session.user) ? session.user : null;
   if(sbUser){
-    await loadProfile();
-    document.getElementById('login-screen').style.display = 'none';
+    // Hide the login screen immediately — never let profile-loading block dismissing it.
+    const ls = document.getElementById('login-screen'); if(ls) ls.style.display = 'none';
     localStorage.setItem('lockin_seen_login','1');
-    syncUp();
-    if(document.getElementById('view-friends').classList.contains('active')) renderFriends();
+    try{ await loadProfile(); }catch(e){}
+    try{ syncUp(); }catch(e){}
+    try{ if(document.getElementById('view-friends').classList.contains('active')) renderFriends(); }catch(e){}
   } else {
     sbProfile = null;
   }

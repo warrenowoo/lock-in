@@ -417,6 +417,24 @@
     color:var(--text);font-weight:700;font-size:15px;margin-top:6px;
   }
   .add-friend-btn:active{transform:scale(.98);}
+  .req-badge{background:var(--red);color:#fff;font-size:11px;font-weight:800;border-radius:20px;padding:2px 8px;margin-left:7px;}
+
+  /* Friends modal */
+  .your-handle{display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:16px;}
+  .your-handle span{font-size:12.5px;color:var(--muted);}
+  .your-handle b{color:var(--text);font-size:15px;flex:1;}
+  .your-handle button{background:var(--surface);border:1px solid var(--line);color:var(--accent);border-radius:9px;padding:7px 13px;font-size:12.5px;font-weight:700;}
+  .fr-row{display:flex;align-items:center;gap:11px;padding:11px 2px;border-bottom:1px solid var(--line);}
+  .fr-row:last-child{border-bottom:none;}
+  .fr-row .avatar{width:38px;height:38px;font-size:15px;}
+  .fr-info{flex:1;min-width:0;}
+  .fr-info .n{font-size:14.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .fr-info .s{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .fr-actions{display:flex;gap:7px;flex-shrink:0;}
+  .fr-btn{padding:8px 13px;border-radius:10px;font-size:13px;font-weight:700;}
+  .fr-btn.accept,.fr-btn.add{background:var(--accent);color:#0d0f0e;}
+  .fr-btn.decline,.fr-btn.pending{background:var(--surface-2);border:1px solid var(--line);color:var(--muted);}
+  .fr-empty{font-size:13px;color:var(--muted);padding:10px 2px;}
 </style>
 </head>
 <body>
@@ -629,7 +647,7 @@
   </div>
   <div id="soc-leaderboard">
     <div class="card" id="lb-list"></div>
-    <button class="add-friend-btn" onclick="addFriendPrompt()">＋ Add friends</button>
+    <button class="add-friend-btn" onclick="openFriendsModal()">＋ Add friends<span class="req-badge" id="req-count" style="display:none;"></span></button>
   </div>
   <div id="soc-feed" style="display:none;"></div>
 </div>
@@ -651,6 +669,31 @@
   <button class="on" data-v="today" onclick="switchView('today')"><span class="ic">🏠</span>Today</button>
   <button data-v="cal" onclick="switchView('cal')"><span class="ic">📅</span>Calendar</button>
   <button data-v="friends" onclick="switchView('friends')"><span class="ic">👥</span>Friends</button>
+</div>
+
+<!-- ============ FRIENDS MODAL ============ -->
+<div class="modal-bg" id="friendsModal">
+  <div class="modal">
+    <h2>Add friends</h2>
+    <div class="your-handle">
+      <span>Your username</span>
+      <b id="my-handle">@warrenowoo</b>
+      <button onclick="flash('📋 Username copied (preview)')">Copy</button>
+    </div>
+    <div class="field">
+      <label>Search by username</label>
+      <div class="add-row">
+        <input id="friend-search" placeholder="@username" oninput="searchFriends()" onkeydown="if(event.key==='Enter')searchFriends()">
+        <button class="add-btn" onclick="searchFriends()">→</button>
+      </div>
+    </div>
+    <div id="friend-results"></div>
+    <div class="section-title" style="margin-top:18px;">Requests</div>
+    <div id="friend-requests"></div>
+    <div class="section-title">Your friends</div>
+    <div id="friend-list"></div>
+    <button class="btn" style="width:100%;margin-top:18px;" onclick="closeFriendsModal()">Done</button>
+  </div>
 </div>
 
 <!-- ============ GOAL MODAL ============ -->
@@ -1181,8 +1224,76 @@ function setSocialTab(t){
   document.getElementById('soc-feed').style.display = t==='feed' ? 'block' : 'none';
   renderFriends();
 }
-function renderFriends(){ if(socialTab==='leaderboard') renderLeaderboard(); else renderFeed(); }
-function addFriendPrompt(){ flash('👋 Friend search goes live once accounts are on'); }
+function renderFriends(){ if(socialTab==='leaderboard') renderLeaderboard(); else renderFeed(); updateReqBadge(); }
+// --- Add-friends flow (preview / mock; swaps to Supabase queries once live) ---
+let FRIEND_REQUESTS = [
+  {name:'Priya R.', handle:'priyar', color:'#ff6bd6', sub:'2 mutual friends'},
+  {name:'Sam W.',   handle:'samw',   color:'#3ba3ff', sub:'New to Lock-In'},
+];
+const SEARCH_POOL = [
+  {name:'Chris P.', handle:'chrisp', color:'#ff9d3b'},
+  {name:'Bella',    handle:'bella',  color:'#c56bff'},
+  {name:'Kofi',     handle:'kofi',   color:'#3ba3ff'},
+  {name:'Alex M.',  handle:'alexm',  color:'#2fbf5b'},
+];
+let sentRequests = {};
+
+function updateReqBadge(){
+  const b = document.getElementById('req-count');
+  if(!b) return;
+  b.textContent = FRIEND_REQUESTS.length;
+  b.style.display = FRIEND_REQUESTS.length ? 'inline-block' : 'none';
+}
+function frRowHTML(p, actions){
+  const sub = `@${esc(p.handle)}${p.sub?' · '+esc(p.sub):''}`;
+  return `<div class="fr-row">${avatarHTML(p.name,p.color,38)}
+    <div class="fr-info"><div class="n">${esc(p.name)}</div><div class="s">${sub}</div></div>
+    <div class="fr-actions">${actions}</div></div>`;
+}
+function handleFor(name){ return name.toLowerCase().replace(/[^a-z0-9]/g,''); }
+function openFriendsModal(){
+  document.getElementById('friend-search').value = '';
+  document.getElementById('friend-results').innerHTML = '';
+  renderFriendRequests();
+  renderMyFriends();
+  document.getElementById('friendsModal').classList.add('show');
+}
+function closeFriendsModal(){ document.getElementById('friendsModal').classList.remove('show'); }
+function renderFriendRequests(){
+  const box = document.getElementById('friend-requests');
+  box.innerHTML = FRIEND_REQUESTS.length
+    ? FRIEND_REQUESTS.map((p,i)=>frRowHTML(p,
+        `<button class="fr-btn accept" onclick="acceptRequest(${i})">Accept</button>
+         <button class="fr-btn decline" onclick="declineRequest(${i})">✕</button>`)).join('')
+    : '<div class="fr-empty">No pending requests.</div>';
+  updateReqBadge();
+}
+function renderMyFriends(){
+  document.getElementById('friend-list').innerHTML = DEMO_FRIENDS.length
+    ? DEMO_FRIENDS.map(f=>frRowHTML(
+        {name:f.name, handle:handleFor(f.name), color:f.color, sub:`${f.streak}🔥 streak`},
+        `<button class="fr-btn decline" onclick="flash('Friend removed (preview)')">Remove</button>`)).join('')
+    : '<div class="fr-empty">No friends yet — search above to add some.</div>';
+}
+function searchFriends(){
+  const q = document.getElementById('friend-search').value.trim().toLowerCase().replace('@','');
+  const box = document.getElementById('friend-results');
+  if(!q){ box.innerHTML=''; return; }
+  const res = SEARCH_POOL.filter(p=>p.handle.includes(q) || p.name.toLowerCase().includes(q));
+  box.innerHTML = res.length
+    ? res.map(p=> frRowHTML(p, sentRequests[p.handle]
+        ? `<button class="fr-btn pending" disabled>Pending</button>`
+        : `<button class="fr-btn add" onclick="sendRequest('${p.handle}')">Add</button>`)).join('')
+    : `<div class="fr-empty">No one found for "${esc(q)}". They may not be on Lock-In yet.</div>`;
+}
+function sendRequest(handle){ sentRequests[handle]=true; searchFriends(); flash('👋 Friend request sent (preview)'); }
+function acceptRequest(i){
+  const p = FRIEND_REQUESTS.splice(i,1)[0];
+  DEMO_FRIENDS.push({name:p.name, color:p.color, streak:0, perfect:0, today:[0,0,0]});
+  renderFriendRequests(); renderMyFriends();
+  flash('✅ You and '+p.name.split(' ')[0]+' are now friends (preview)');
+}
+function declineRequest(i){ FRIEND_REQUESTS.splice(i,1); renderFriendRequests(); flash('Request dismissed'); }
 
 /* ---------------- Login ---------------- */
 function showLogin(){ document.getElementById('login-screen').style.display='flex'; }
@@ -1228,6 +1339,7 @@ function saveGoal(){
 }
 function closeModal(){ document.getElementById('goalModal').classList.remove('show'); }
 document.getElementById('goalModal').addEventListener('click',e=>{if(e.target.id==='goalModal')closeModal();});
+document.getElementById('friendsModal').addEventListener('click',e=>{if(e.target.id==='friendsModal')closeFriendsModal();});
 
 /* ---------------- Nav ---------------- */
 function switchView(v){

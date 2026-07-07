@@ -58,6 +58,13 @@
   }
   .app-header h1{font-size:21px;letter-spacing:-.5px;}
   .app-header .date{font-size:13px;color:var(--muted);text-align:right;line-height:1.35;}
+  .hdr-right{display:flex;align-items:center;gap:13px;}
+  .gear-btn{color:var(--muted);display:flex;align-items:center;justify-content:center;padding:4px;transition:.2s;}
+  .gear-btn:active{color:var(--text);transform:rotate(40deg);}
+  .set-label{font-size:12.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;margin:18px 2px 8px;}
+  .set-row{display:flex;align-items:center;justify-content:space-between;width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:14px;font-size:15px;color:var(--text);font-weight:600;margin-bottom:8px;}
+  .set-row b{color:var(--accent);font-weight:700;}
+  .set-version{text-align:center;font-size:12px;color:var(--muted);margin-top:16px;opacity:.7;}
   .streak{
     font-size:12px;color:var(--accent);font-weight:700;
     display:inline-flex;align-items:center;gap:4px;
@@ -497,7 +504,12 @@
       <div class="streak" id="streak"></div>
     </div>
   </div>
-  <div class="date" id="dateLabel"></div>
+  <div class="hdr-right">
+    <div class="date" id="dateLabel"></div>
+    <button class="gear-btn" onclick="openSettings()" aria-label="Settings">
+      <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
 </div>
 
 <!-- ============ TODAY ============ -->
@@ -728,38 +740,55 @@
   </div>
 </div>
 
-<!-- ============ PROFILE MODAL ============ -->
-<div class="modal-bg" id="profileModal">
+<!-- ============ SETTINGS MODAL ============ -->
+<div class="modal-bg" id="settingsModal">
   <div class="modal">
-    <h2>Account</h2>
-    <div class="profile-head">
-      <div class="avatar" id="pf-avatar">?</div>
-      <div class="pi"><div class="dn" id="pf-dn">—</div><div class="em" id="pf-email">—</div></div>
+    <h2>Settings</h2>
+
+    <div id="set-signedout" style="display:none;">
+      <div class="stat-sub" style="margin:2px 2px 14px;line-height:1.5;">You're not signed in. Sign in to sync your data across devices and connect with friends.</div>
+      <button class="btn primary" style="width:100%;" onclick="closeSettings();showLogin();">Sign in / Create account</button>
     </div>
-    <div class="pf-stats">
-      <div class="s"><b id="pf-streak">0</b><span>day streak</span></div>
-      <div class="s"><b id="pf-perfect">0</b><span>perfect days</span></div>
-    </div>
-    <div class="field">
-      <label>Username</label>
-      <div class="add-row">
-        <input id="pf-username" autocapitalize="none" autocomplete="off" placeholder="username">
-        <button class="btn sm primary" onclick="saveUsername()">Save</button>
+
+    <div id="set-signedin" style="display:none;">
+      <div class="set-label">Account</div>
+      <div class="profile-head">
+        <div class="avatar" id="pf-avatar">?</div>
+        <div class="pi"><div class="dn" id="pf-dn">—</div><div class="em" id="pf-email">—</div></div>
       </div>
-      <div class="auth-err" id="pf-uerr"></div>
-    </div>
-    <div class="field">
-      <label>Display name</label>
-      <div class="add-row">
-        <input id="pf-display" placeholder="Your name (optional)">
-        <button class="btn sm primary" onclick="saveDisplayName()">Save</button>
+      <div class="pf-stats">
+        <div class="s"><b id="pf-streak">0</b><span>day streak</span></div>
+        <div class="s"><b id="pf-perfect">0</b><span>perfect days</span></div>
       </div>
+      <div class="field">
+        <label>Username</label>
+        <div class="add-row">
+          <input id="pf-username" autocapitalize="none" autocomplete="off" placeholder="username">
+          <button class="btn sm primary" onclick="saveUsername()">Save</button>
+        </div>
+        <div class="auth-err" id="pf-uerr"></div>
+      </div>
+      <div class="field">
+        <label>Display name</label>
+        <div class="add-row">
+          <input id="pf-display" placeholder="Your name (optional)">
+          <button class="btn sm primary" onclick="saveDisplayName()">Save</button>
+        </div>
+      </div>
+      <button class="btn primary" style="width:100%;margin-top:4px;" onclick="signOut()">Log out</button>
     </div>
-    <button class="btn" style="width:100%;margin-top:6px;" onclick="closeProfile()">Done</button>
-    <div class="danger-zone">
-      <button class="btn" style="width:100%;" onclick="signOut()">Sign out</button>
-      <button class="btn outline-danger" style="width:100%;margin-top:10px;" onclick="deleteAccount()">Delete account</button>
+
+    <div class="set-label">Daily goals</div>
+    <button class="set-row" onclick="closeSettings();openGoal('water')"><span>💧 Water goal</span><b id="set-water-goal">6</b></button>
+    <button class="set-row" onclick="closeSettings();openGoal('food')"><span>🍽️ Calorie goal</span><b id="set-food-goal">3000</b></button>
+
+    <button class="btn" style="width:100%;margin-top:14px;" onclick="closeSettings()">Done</button>
+
+    <div id="set-danger" class="danger-zone" style="display:none;">
+      <button class="btn outline-danger" style="width:100%;" onclick="deleteAccount()">Delete account</button>
     </div>
+
+    <div class="set-version">Lock-In · v1.0</div>
   </div>
 </div>
 
@@ -1616,7 +1645,7 @@ async function submitAuth(){
   } catch(err){ authErr(String(err && err.message || err)); }
   finally { btn.disabled = false; btn.textContent = orig; }
 }
-async function signOut(){ if(sb) await sb.auth.signOut(); sbUser=null; sbProfile=null; updateAccountUI(); showLogin(); }
+async function signOut(){ if(sb) try{ await sb.auth.signOut(); }catch(e){} sbUser=null; sbProfile=null; closeSettings(); updateAccountUI(); showLogin(); }
 
 async function sbInit(){
   if(!sb) return;
@@ -1650,7 +1679,7 @@ function updateAccountUI(){
   if(banner){
     if(sbUser){
       banner.textContent = '👤 @'+(sbProfile ? sbProfile.username : 'you')+' — tap to manage account';
-      banner.onclick = openProfile;
+      banner.onclick = openSettings;
     } else {
       banner.textContent = '👀 Preview with sample friends — tap to sign in & go live.';
       banner.onclick = showLogin;
@@ -1661,22 +1690,31 @@ function updateAccountUI(){
 }
 
 /* ---------------- Profile / Account ---------------- */
-function openProfile(){
-  if(!sbUser){ showLogin(); return; }
-  const dn = sbProfile ? nameOf(sbProfile) : '@you';
-  const av = document.getElementById('pf-avatar');
-  av.textContent = (dn.replace('@','')[0]||'?').toUpperCase();
-  av.style.background = colorFor(sbProfile ? sbProfile.username : 'x');
-  document.getElementById('pf-dn').textContent = dn;
-  document.getElementById('pf-email').textContent = sbUser.email || '';
-  document.getElementById('pf-streak').textContent = sbProfile ? (sbProfile.current_streak||0) : 0;
-  document.getElementById('pf-perfect').textContent = sbProfile ? (sbProfile.perfect_days||0) : 0;
-  document.getElementById('pf-username').value = sbProfile ? sbProfile.username : '';
-  document.getElementById('pf-display').value = (sbProfile && sbProfile.display_name) ? sbProfile.display_name : '';
-  document.getElementById('pf-uerr').textContent = '';
-  document.getElementById('profileModal').classList.add('show');
+function openSettings(){
+  const inEl = document.getElementById('set-signedin');
+  const outEl = document.getElementById('set-signedout');
+  const danger = document.getElementById('set-danger');
+  if(sbUser){
+    inEl.style.display = 'block'; outEl.style.display = 'none'; danger.style.display = 'block';
+    const dn = sbProfile ? nameOf(sbProfile) : '@you';
+    const av = document.getElementById('pf-avatar');
+    av.textContent = (dn.replace('@','')[0]||'?').toUpperCase();
+    av.style.background = colorFor(sbProfile ? sbProfile.username : 'x');
+    document.getElementById('pf-dn').textContent = dn;
+    document.getElementById('pf-email').textContent = sbUser.email || '';
+    document.getElementById('pf-streak').textContent = sbProfile ? (sbProfile.current_streak||0) : 0;
+    document.getElementById('pf-perfect').textContent = sbProfile ? (sbProfile.perfect_days||0) : 0;
+    document.getElementById('pf-username').value = sbProfile ? sbProfile.username : '';
+    document.getElementById('pf-display').value = (sbProfile && sbProfile.display_name) ? sbProfile.display_name : '';
+    document.getElementById('pf-uerr').textContent = '';
+  } else {
+    inEl.style.display = 'none'; outEl.style.display = 'block'; danger.style.display = 'none';
+  }
+  document.getElementById('set-water-goal').textContent = data.goals.water + ' bottles';
+  document.getElementById('set-food-goal').textContent = data.goals.food + ' cal';
+  document.getElementById('settingsModal').classList.add('show');
 }
-function closeProfile(){ document.getElementById('profileModal').classList.remove('show'); }
+function closeSettings(){ document.getElementById('settingsModal').classList.remove('show'); }
 async function saveUsername(){
   const u = document.getElementById('pf-username').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
   const err = document.getElementById('pf-uerr'); err.style.color='';
@@ -1703,7 +1741,7 @@ async function deleteAccount(){
   if(error){ flash('Delete failed: '+error.message); return; }
   try{ await sb.auth.signOut(); }catch(e){}
   sbUser = null; sbProfile = null;
-  closeProfile(); updateAccountUI();
+  closeSettings(); updateAccountUI();
   showLogin();
   flash('Account deleted');
 }
@@ -1744,7 +1782,7 @@ function saveGoal(){
 function closeModal(){ document.getElementById('goalModal').classList.remove('show'); }
 document.getElementById('goalModal').addEventListener('click',e=>{if(e.target.id==='goalModal')closeModal();});
 document.getElementById('friendsModal').addEventListener('click',e=>{if(e.target.id==='friendsModal')closeFriendsModal();});
-document.getElementById('profileModal').addEventListener('click',e=>{if(e.target.id==='profileModal')closeProfile();});
+document.getElementById('settingsModal').addEventListener('click',e=>{if(e.target.id==='settingsModal')closeSettings();});
 
 /* ---------------- Nav ---------------- */
 function switchView(v){
